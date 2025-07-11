@@ -1,0 +1,7 @@
+*.inp
+*.frd
+tests/*
+FrontISTR*
+__pycache__
+.vscode
+BUILD
