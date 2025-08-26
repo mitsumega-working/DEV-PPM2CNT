@@ -19,7 +19,7 @@ if (Test-Path -Path "PrePoSTR\") {
 
 Copy-Item -Recurse PrePoSTR.dist PrePoSTR\
 Copy-Item -Recurse ..\FrontISTR-DEV250506 .\PrePoSTR
-Copy-Item ..\open_pvtu.py .\PrePoSTR
+Copy-Item ..\functions\open_pvtu.py .\PrePoSTR
 7z.exe a ..\PrePoSTR_v1.0.zip PrePoSTR\* #7zipが使える場合はこちらの方が圧縮・解凍ともに高速
 # Compress-Archive -Path .\PrePoSTR -DestinationPath ..\PrePoSTR_vX.X.zip -Force
 Remove-Item -Recurse PrePoSTR

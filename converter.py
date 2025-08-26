@@ -631,6 +631,8 @@ class CONVERTER(fistr_model, res2frd):
     for elem in elems:
       etype = elem_dict[str(len(elem)-1)]
       text += f' -1{elem[0]:>10}{etype:>5}    0    1\n'
+      if etype == 6:
+        elem = [elem[i] for i in [0,1,2,3,4,7,5,6,8,9,10]]
       text += ' -2'+''.join(f'{e:>10}' for e in elem[1:])+'\n'
     text += ' -3\n'
 
@@ -665,7 +667,7 @@ class CONVERTER(fistr_model, res2frd):
       nid = int(texts.pop(0))
       idx = self.node_order[nid]
       data = []
-      for j in range(sum(nums)//5+1):
+      for j in range(sum(nums-1)//5+1):
         data += list(map(float, texts.pop(0).split()))
       self.get_data(data,0,idx)
 

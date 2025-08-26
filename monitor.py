@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter.scrolledtext import ScrolledText
 import sys, subprocess, threading, traceback
-from os.path import join, splitext, basename
+from os.path import join, splitext, basename, realpath
 from functions.make_std_sta import *
 from functions.errors import write_err_damp
 
@@ -15,7 +15,7 @@ class MONITOR(EDITOR):
   
   def monitor_main(self):
     EDITOR.__init__(self,'',self.exepath)
-    self.pvscript_path = join(self.root_dir,'open_pvtu.py')
+    self.pvscript_path = join(realpath(self.root_dir),'open_pvtu.py')
     self.root.title("ジョブモニタ")
     self.root.geometry("600x450+100+100")
     self.quit_flag = False; self.back_to_editor = False
