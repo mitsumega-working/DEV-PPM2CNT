@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
+from .errors import *
+
 import numpy as np
 import re
 from math import sqrt
-from functions.errors import *
-from functions.res2frd import res2frd
 
 def get_param(pattern, header, name_only=True):
   param = ''
@@ -67,10 +67,9 @@ class fistr_model:
     #
     self.log_file = None
 
-class CONVERTER(fistr_model, res2frd):
+class READER(fistr_model):
   def __init__(self):
     super().__init__()
-    res2frd.__init__(self)
   
   ########################################
   ###### Function for Each Keywords ######
@@ -605,124 +604,3 @@ class CONVERTER(fistr_model, res2frd):
         if len(cond[1]) < 1: del_list.insert(0,i)
       for del_index in del_list:
         del obj[del_index]
-
-  ############################
-  ##### Result Converter #####
-  ############################
-  def model_write(self):
-    text = ''
-    ## nodes
-    node_ids = []
-    for ids in self.node_id: node_ids += ids
-
-    text += f'    2C{len(node_ids):>30}                                     1\n'
-    for i, coord in enumerate(self.nodes_coord):
-      nid = node_ids[i]
-      text += f' -1{nid:>10}'+''.join(f'{c:12.5E}' for c in coord)+'\n'
-    text += ' -3\n'
-
-    ## elems
-    elem_dict = {'8':1, '6':2, '4':3, '10':6}
-
-    elems = []
-    for elem in self.elems: elems += [list(map(int,text.split(','))) for text in elem]
-    
-    text += f'    3C{len(elems):>30}                                     1\n'
-    for elem in elems:
-      etype = elem_dict[str(len(elem)-1)]
-      text += f' -1{elem[0]:>10}{etype:>5}    0    1\n'
-      if etype == 6:
-        elem = [elem[i] for i in [0,1,2,3,4,7,5,6,8,9,10]]
-      text += ' -2'+''.join(f'{e:>10}' for e in elem[1:])+'\n'
-    text += ' -3\n'
-
-    return text
-
-  def read_resfile(self, texts):
-    self.nflags = []; self.eflags = []
-    # get time
-    flag = False
-    for dline, text in enumerate(texts):
-      if '*data' in text: break
-      if 'TOTALTIME' in text: flag = True; continue
-      if flag: self.ttime = float(text); continue
-    
-    # data lines
-    texts = texts[dline+1:]
-
-    nn, ne = map(int, texts.pop(0).split())
-    nres, eres = map(int, texts.pop(0).split())
-    
-    # node result
-    nums = []
-    for i in range(int(nres//10+1)): nums += list(map(int, texts.pop(0).split()))
-    names = []
-    for i in range(nres): names.append(texts.pop(0))
-
-    self.get_result_dict(nums,names,0)
-    self.extract_result(0)
-    self.allocate_resarray(self.nnode,0)
-
-    for i in range(nn):
-      nid = int(texts.pop(0))
-      idx = self.node_order[nid]
-      data = []
-      for j in range(sum(nums-1)//5+1):
-        data += list(map(float, texts.pop(0).split()))
-      self.get_data(data,0,idx)
-
-    # elem result
-    nums = []
-    for i in range(int(eres//10+1)): nums += list(map(int, texts.pop(0).split()))
-    names = []
-    for i in range(eres): names.append(texts.pop(0))
-
-    self.get_result_dict(nums,names,1)
-    self.extract_result(1)
-    self.allocate_resarray(self.nelem,1)
-    
-    for i in range(ne):
-      eid = int(texts.pop(0))
-      idx = self.elem_order[eid]
-      data = []
-      for j in range(sum(nums)//5+1):
-        data += list(map(float, texts.pop(0).split()))
-      self.get_data(data,1,idx)
-
-  def write_frd(self,path,step):
-    f = open(path, 'a', encoding='utf-8')
-    f.write(self.frd_head(step,self.nnode))
-    for j, name in enumerate(self.nflags):
-      res_name = self.res_dict[name]
-      f.write(' -4  ')
-      f.write(f'{res_name:<8}    4    1\n')
-      h = res_name[0]
-      for i in range(3): f.write(f' -5  {h}{i+1}          1    2{i+1:>5}    0\n')
-      f.write(' -5  ALL         1    2    0    0    1ALL\n')
-
-      for i, data in enumerate(self.node_res):
-        nid = self.gl_node_id[i]
-        f.write(f' -1  {nid:>8}')
-        f.write(''.join(f'{d:12.5E}' for d in data[3*j:3*(j+1)])+'\n')
-      f.write(' -3\n')
-
-    f.write(self.frd_head(step,self.nnode))
-    for j, name in enumerate(self.eflags):
-      res_name = self.res_dict[name]
-      f.write(' -4  ')
-      f.write(f'{res_name:<8}    6    1\n')
-      h = res_name[0]
-      if h == 'T': h = 'E'
-      temp1 = ['XX','YY','ZZ','XY','YZ','ZX']
-      temp2 = [[1,1],[2,2],[3,3],[1,2],[2,3],[3,1]]
-      for i in range(6):
-        f.write(f' -5  {h}{temp1[i]}         1    4{temp2[i][0]:>5}{temp2[i][1]:>5}\n')
-
-      for i, data in enumerate(self.elem_res):
-        eid = self.gl_elem_id[i]
-        f.write(f' -1  {eid:>8}')
-        f.write(''.join(f'{d:12.5E}' for d in data[6*j:6*(j+1)])+'\n')
-      f.write(' -3\n')
-    
-    f.close()
-

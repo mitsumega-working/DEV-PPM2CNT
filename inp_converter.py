@@ -1,24 +1,22 @@
 # -*- coding: utf-8 -*-
+import sys
 from argparse import ArgumentParser
-from main import PrePoSTR
-from os.path import dirname, abspath, join, realpath
+from inp_converter.main import CONVERTER
+from os.path import dirname, abspath
 
 #╔══════════════════════════════════╗#
 #║ Converter .inp file to FrontISTR ║#
-#║            for PrePoMax          ║#
-#║      Version:1.1  (2025-09-02)   ║#
 #║   Developed by Ando (Structia)   ║#
 #╚══════════════════════════════════╝#
 
 ps = ArgumentParser()
 ps.add_argument('input', type=str, help="INPファイルのパス")
-ps.add_argument('-nogui', nargs='?', type=str, const=True, metavar="/path/to/.s2f",
-                help="設定ファイルのパス(指定しない場合はsession.rs2fを使用)")
 args = ps.parse_args()
 
 inp_path = abspath(args.input); dir_path = dirname(inp_path)
-exepath = join(realpath(dirname(__file__)),r'FrontISTR-DEV250506')
 if not inp_path.endswith('.inp'): inp_path += '.inp'
 
-prepostr = PrePoSTR(inp_path,dir_path,exepath)
-prepostr.main()
+convert = CONVERTER(inp_path,dir_path)
+convert.main()
+if convert.dflag: sys.exit(1)
+print('header:'+convert.heading)
