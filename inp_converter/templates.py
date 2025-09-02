@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from tkinter import StringVar, IntVar, BooleanVar
-import os
 
 class templates():
   def __init__(self, title):
@@ -94,65 +92,20 @@ class templates():
 !WRITE,RESULT
 !OUTPUT_RES
  NMISES, OFF
- NSTRESS, OFF
+ NSTRESS, ON
+ NSTRAIN, ON
  DISP, ON
  REACTION, ON
- ESTRESS, ON
- ESTRAIN, ON
+ ESTRESS, OFF
+ ESTRAIN, OFF
 '''
-
-  def frd_header(self, date_now):
-    header = f'''\
-    1C
-    1U{self.heading}
-    1UDATE              {date_now:%m.%d.%Y}
-    1UTIME              {date_now:%H:%M:%S}
-'''
-    return header
-
-class EDITOR_templates():
-  def __init__(self, exepath):
-    self.tnum_var = StringVar(value='4')
-    self.pnum_var = StringVar(value='4')
-
-    self.part_select = BooleanVar(value=False)
-    self.exepath = os.path.realpath(exepath)
-
-  def get_exe_command(self):
-    self.command = []
-    if self.part_select.get(): self.command += ['mpiexec.exe','-np', self.pnum_var.get()]
-    self.command += ['fistr1.exe','-t',self.tnum_var.get()]
-
-  def make_ctrl_files(self):
-    if self.part_select.get():
-      ctrl_head = f'''\
-## Converted from inp file by inp2cnt
-# for partitioner
-#
-!MESH, NAME=part_in,TYPE=HECMW-ENTIRE
- {self.title}.msh
-!MESH, NAME=part_out,TYPE=HECMW-DIST
- {self.title}_{self.pnum_var.get()}
-#
-# for solver
-#
-!MESH, NAME=fstrMSH, TYPE=HECMW-DIST
- {self.title}_{self.pnum_var.get()}'''
-      
-      self.pdat_format = f'''\
-!PARTITION,TYPE=NODE-BASED,METHOD=PMETIS,DOMAIN={self.pnum_var.get()},DEPTH=2
-'''
-      
-    else:
-      ctrl_head = f'''\
+    
+    self.dat_format = f'''\
 ## Converted from inp file by inp2cnt
 # for solver
 #
 !MESH, NAME=fstrMSH, TYPE=HECMW-ENTIRE
- {self.title}.msh'''
-
-    self.dat_format = f'''\
-{ctrl_head}
+ {self.title}.msh
 !CONTROL, NAME=fstrCNT
  {self.title}.cnt
 !RESTART, NAME=restart_out, IO=INOUT
@@ -163,14 +116,29 @@ class EDITOR_templates():
  {self.title}_vis
 !SUBDIR, ON
 '''
+    
+  def make_step_form(self):
+    steps_format = ''
+    for step in self.steps:
+      steps_format += f'!STEP,INC_TYPE={step['TYPE']},SUBSTEPS={step['SUBSTEPS']},MAXITER=25,CONVERG=1.0e-4,CONVERG_DDISP=1.0e-4,MAXRES=1.0e5'
+      if len(self.cpairs) != 0: steps_format += ',MAXCONTITER=10'
+      if step['TYPE'] == 'AUTO': steps_format += ',AUTOINCPARAM=AP1'
+      steps_format += f'\n {step['increment']}\n'
+      if 'BOUNDARY' in step: steps_format += f' BOUNDARY,{step['BOUNDARY']}\n'
+      if 'LOAD' in step: steps_format += f' LOAD,{step['LOAD']}\n'
+      # if 'CONTACT' in step: steps_format += f' CONTACT,{step['CONTACT']}\n'
+      if len(self.cpairs) != 0: steps_format += ' CONTACT, 1\n'
+      if len(self.tied) != 0: steps_format += ' CONTACT, 2\n'
+      steps_format += f' LOAD,99\n' #spring
+    
+    steps_format = f'''\
+!AUTOINC_PARAM, NAME=AP1
+ 0.75, 10, 20, 5, 1
+ 1.25,  5, 15, 3, 1
+ 0.25,  5
+{steps_format}\
+### Solver Control
+!SOLVER,METHOD=MUMPS
+'''
+    return steps_format
 
-  ### hecmw_part_ctrl.dat file ###
-  def write_part_dat(self):
-    self.make_ctrl_files()
-    ### .dat file ###
-    f = open('hecmw_ctrl.dat','w', encoding='utf-8')
-    f.write(self.dat_format); f.close()
-
-    if self.part_select.get():
-      f = open('hecmw_part_ctrl.dat','w', encoding='utf-8')
-      f.write(self.pdat_format); f.close()

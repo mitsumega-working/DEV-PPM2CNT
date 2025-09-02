@@ -1,7 +1,10 @@
 *.inp
 *.frd
-tests/*
+test*
 FrontISTR*
 __pycache__
 .vscode
 BUILD
+exes
+tools
+*.xml

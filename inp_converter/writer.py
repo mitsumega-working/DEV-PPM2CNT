@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
-import os, re
-from glob import glob
-from converter import CONVERTER
+from .reader import READER
+from .templates import templates
+from .errors import *
 
+import os
+from glob import glob
 from os.path import basename, splitext
-from functions.templates import templates
-from functions.errors import *
 
 ##########################################
 ###### Output FrontISTR input Files ######
 ##########################################
-class WRITER(templates, CONVERTER):
+class WRITER(templates, READER):
   def __init__(self, inp_path, dir_path, dt_now):
+    READER.__init__(self)
     templates.__init__(self, 'job')
-    CONVERTER.__init__(self)
     self.inp_path = inp_path
     self.dir_path = dir_path
     self.dflag = False
@@ -136,6 +136,7 @@ class WRITER(templates, CONVERTER):
           elif len(datas) > 1: key += ',DEPENDENCIES=1'
           f.write(key+'\n')
           for data in datas: f.write(' '+','.join(data)+'\n')
+      f.write('#!SECTION,SECNUM=1,FORM341=FI/SELECTIVE_ESNS\n#!SECTION,SECNUM=1,FORM361=FI/IC/FBAR/BBAR\n')
       f.close()
     self.control_files += '!INCLUDE, INPUT=include/PLASTIC.msh\n'
 
@@ -260,47 +261,6 @@ class WRITER(templates, CONVERTER):
     f = open(f'{self.title}.cnt','w', encoding='utf-8')
     f.write(self.cnt_format); f.close()
 
-  def make_step_form(self):
-    steps_format = ''
-    for step in self.steps:
-      steps_format += f'!STEP,INC_TYPE={step['TYPE']},SUBSTEPS={step['SUBSTEPS']},MAXITER=25,CONVERG=1.0e-4,CONVERG_DDISP=1.0e-4,MAXRES=1.0e5'
-      if len(self.cpairs) != 0: steps_format += ',MAXCONTITER=10'
-      if step['TYPE'] == 'AUTO': steps_format += ',AUTOINCPARAM=AP1'
-      steps_format += f'\n {step['increment']}\n'
-      if 'BOUNDARY' in step: steps_format += f' BOUNDARY,{step['BOUNDARY']}\n'
-      if 'LOAD' in step: steps_format += f' LOAD,{step['LOAD']}\n'
-      # if 'CONTACT' in step: steps_format += f' CONTACT,{step['CONTACT']}\n'
-      if len(self.cpairs) != 0: steps_format += ' CONTACT, 1\n'
-      if len(self.tied) != 0: steps_format += ' CONTACT, 2\n'
-      steps_format += f' LOAD,99\n' #spring
-    
-    steps_format = f'''\
-#!SECTION,SECNUM=1,FORM341=FI/SELECTIVE_ESNS
-#!SECTION,SECNUM=1,FORM361=FI/IC/FBAR/BBAR
-!AUTOINC_PARAM, NAME=AP1
- 0.75, 10, 20, 5, 1
- 1.25,  5, 15, 3, 1
- 0.25,  5
-{steps_format}\
-### Solver Control
-!SOLVER,METHOD=MUMPS
-'''
-    return steps_format
-  
-  def make_frd(self):
-    with open(self.inp_path.replace('.inp','.frd'), 'w') as f:
-      f.write(self.frd_header(self.date_now))
-      f.write(self.model_write())
-      f.close()
-
-    resdir_list = glob(os.path.join(self.out_dir, "fstrRES/STEP*"))
-    resdir_list = sorted(resdir_list, key=lambda x: int(re.search(r"STEP(\d+)", x).group(1)))
-    for i, resdir in enumerate(resdir_list):
-      if basename(resdir) == 'STEP0': continue
-      resfile_list = glob(os.path.join(resdir, "job.res.*"))
-      self.newstep = True
-      for resfile in resfile_list:
-        f = open(resfile); texts = f.read().split('\n'); f.close()
-        self.read_resfile(texts); self.newstep = False
-
-      self.write_frd(self.inp_path.replace('.inp','.frd'), i)
+    ### hecmw_ctrl.dat file ###
+    f = open(os.path.join('hecmw_ctrl.dat'),'w', encoding='utf-8')
+    f.write(self.dat_format); f.close()
